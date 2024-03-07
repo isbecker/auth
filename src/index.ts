@@ -5,6 +5,8 @@ import { D1Adapter } from "@lucia-auth/adapter-sqlite";
 import { GitHub, OAuth2RequestError, generateState } from 'arctic';
 import { parse } from "cookie";
 import { Lucia, generateId } from "lucia";
+import { TimeSpan } from "oslo/.";
+import { createJWT } from "oslo/jwt";
 
 
 export interface Env {  // If you set another name in wrangler.toml as the value for 'binding',
@@ -225,9 +227,21 @@ export default {
 						},
 					});
 				}
+				const key = pemToArrayBuffer(env.PRIVATE_KEY)
+				const payload = {
+					messaage: "Hello, World!"
+				}
+				// const key = await crypto.subtle.importKey("spki", pemToArrayBuffer(env.PRIVATE_KEY), "RSASSA-PKCS1-v1_5", false, ["verify"]);
+				const jwt = await createJWT("RS256", key, payload, {
+					expiresIn: new TimeSpan(30, "m"),
+					issuer: "https://auth.beckr.dev",
+					subject: user.id,
+					audiences: ["https://reader.beckr.dev"],
+					includeIssuedTimestamp: true,
+				});
 
 				// Everthing is good, just return 200
-				return new Response(null, {
+				return new Response(JSON.stringify({ auth: jwt }), {
 					status: 200
 				});
 			}
