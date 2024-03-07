@@ -87,8 +87,8 @@ async function getActivePulicKey(db: D1Database): Promise<DatabasePubKey> {
 	return await db.prepare("SELECT * FROM rsa_public_keys WHERE status = 'active'").first() as DatabasePubKey;
 }
 
-async function getInactivePulicKeys(db: D1Database): Promise<DatabasePubKey[]> {
-	return await db.prepare("SELECT * FROM rsa_public_keys WHERE status = 'inactive'").all() as unknown as DatabasePubKey[];
+async function getInactivePulicKey(db: D1Database): Promise<DatabasePubKey> {
+	return await db.prepare("SELECT * FROM rsa_public_keys WHERE status = 'inactive'").first() as DatabasePubKey;
 }
 
 export default {
@@ -252,19 +252,17 @@ export default {
 				kid: active.key_id,
 			};
 
-			const inactives = await getInactivePulicKeys(env.DB);
-			const inactiveKeys = inactives.map((key) => {
-				return {
-					kty: 'RSA',
-					use: 'sig',
-					alg: 'RS256',
-					n: key.modulus,
-					e: key.exponent,
-					kid: key.key_id,
-				};
-			});
+			const inactive = await getInactivePulicKey(env.DB);
+			const inactiveKey = {
+				kty: 'RSA',
+				use: 'sig',
+				alg: 'RS256',
+				n: inactive.modulus,
+				e: inactive.exponent,
+				kid: inactive.key_id,
+			};
 
-			return new Response(JSON.stringify({ keys: [jwk, inactiveKeys] }), {
+			return new Response(JSON.stringify({ keys: [jwk, inactiveKey] }), {
 				headers: {
 					'Content-Type': 'application/json',
 				},
