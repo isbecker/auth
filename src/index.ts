@@ -93,7 +93,7 @@ async function getInactivePulicKey(db: D1Database): Promise<DatabasePubKey> {
 
 async function generateRefreshToken(db: D1Database, userId: string): Promise<string> {
 	// First check to see if we already have a refresh token for this user
-	const existingToken = await db.prepare("SELECT token FROM refresh_tokens WHERE user_id = ?").bind(userId).first() as { token: string, expires_at: Date } | undefined;
+	const existingToken = await db.prepare("SELECT token, expires_at FROM refresh_tokens WHERE user_id = ?").bind(userId).first() as { token: string, expires_at: Date } | undefined;
 	if (existingToken) {
 		if (existingToken.expires_at < new Date()) {
 			await db.prepare("DELETE FROM refresh_tokens WHERE token = ?").bind(existingToken.token).run();
@@ -103,8 +103,8 @@ async function generateRefreshToken(db: D1Database, userId: string): Promise<str
 	}
 	const tokenId = generateId(15);
 	const refreshToken = generateId(36);
-	await db.prepare("INSERT INTO refresh_tokens (id, token, user_id, expires_at) VALUES (?, ?)")
-		.bind(tokenId, refreshToken, userId, new Date(Date.now() + 30 * 24 * 60 * 60 * 1000))
+	await db.prepare("INSERT INTO refresh_tokens (id, token, user_id, expires_at) VALUES (?, ?, ?, DATETIME('now', '+30 days'))")
+		.bind(tokenId, refreshToken, userId)
 		.run();
 	return refreshToken;
 }
