@@ -31,7 +31,7 @@ jobs:
     - name: Extract exponent (e)
       id: exponent
       run: |
-        EXPONENT=$(openssl rsa -pubin -in public.pem -text -noout | grep "^publicExponent" | cut -d' ' -f4)
+        EXPONENT=$(openssl rsa -pubin -in public.pem -text -noout | grep "^Exponent" | cut -d' ' -f2)
         echo "EXPONENT=$EXPONENT" >> $GITHUB_ENV
 
 
