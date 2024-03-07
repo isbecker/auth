@@ -60,6 +60,19 @@ jobs:
       run: |
         echo $EXPONENT | npx wrangler secret put EXPONENT
 
-    - name: Cleanup
+    - name: Cleanup key
       run: |
         rm public.pem
+    
+    - name: Generate UUID for kid
+      run: |
+        KID=$(uuidgen)
+        echo "KID=$KID" >> $GITHUB_ENV
+
+    - name: Store kid in Cloudflare Worker as a secret
+      env:
+        CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        KID: ${{ env.KID }}
+      run: |
+        echo $KID | npx wrangler secret put KID
