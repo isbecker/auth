@@ -23,6 +23,18 @@ jobs:
         openssl genpkey -algorithm RSA -out private.pem -pkeyopt rsa_keygen_bits:2048
         openssl rsa -pubout -in private.pem -out public.pem
 
+    - name: Extract modulus (n)
+      id: modulus
+      run: |
+        echo "MODULUS=$(openssl rsa -pubin -in public.pem -modulus -noout | cut -d'=' -f2)" >> $GITHUB_ENV
+
+    - name: Extract exponent (e)
+      id: exponent
+      run: |
+        EXPONENT=$(openssl rsa -pubin -in public.pem -text -noout | grep "^publicExponent" | cut -d' ' -f4)
+        echo "EXPONENT=$EXPONENT" >> $GITHUB_ENV
+
+
     - name: Update private key in Cloudflare Worker as secret
       env:
         CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -31,10 +43,22 @@ jobs:
         npx wrangler secret put PRIVATE_KEY < private.pem
         rm private.pem
 
-    - name: Update public key in Cloudflare Worker as secret
+    - name: Update modulus (n) in Cloudflare Worker as secret
       env:
         CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        MODULUS: ${{ env.MODULUS }}
       run: |
-        npx wrangler secret put PUBLIC_KEY < public.pem
+        echo $MODULUS | npx wrangler secret put MODULUS
+
+    - name: Update exponent (e) in Cloudflare Worker as secret
+      env:
+        CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        EXPONENT: ${{ env.EXPONENT }}
+      run: |
+        echo $EXPONENT | npx wrangler secret put EXPONENT
+
+    - name: Cleanup
+      run: |
         rm public.pem
