@@ -268,6 +268,15 @@ export default {
 				},
 			});
 
+		} else if (pathname === '/.well-known/openid-configuration') {
+			return new Response(JSON.stringify({
+				issuer: "https://auth.beckr.dev",
+				jwks_uri: "https://auth.beckr.dev/.well-known/jwks.json",
+			}), {
+				headers: {
+					'Content-Type': 'application/json',
+				},
+			});
 		}
 
 		return new Response(null, {
