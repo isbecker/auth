@@ -35,6 +35,10 @@ jobs:
         EXPONENT=$(openssl rsa -pubin -in public.pem -text -noout | grep "^Exponent" | awk '{print $2}' | xargs -I {} python3 -c "import base64; print(base64.urlsafe_b64encode((int({})).to_bytes(3, byteorder='big')).decode())" | tr '/+' '_-' | tr -d '=')
         echo "EXPONENT=$EXPONENT" >> $GITHUB_ENV
 
+    - name: Generate UUID for kid
+      run: |
+        KID=$(uuidgen)
+        echo "KID=$KID" >> $GITHUB_ENV
 
     - name: Update private key in Cloudflare Worker as secret
       env:
@@ -44,35 +48,18 @@ jobs:
         npx wrangler secret put PRIVATE_KEY < private.pem
         rm private.pem
 
-    - name: Update modulus (n) in Cloudflare Worker as secret
-      env:
-        CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-        MODULUS: ${{ env.MODULUS }}
+    - name: Mark active key as inactive and update timestamps
       run: |
-        echo $MODULUS | npx wrangler secret put MODULUS
+        npx wrangler d1 execute ${{ secrets.DATABASE_NAME }} --command="UPDATE rsa_public_keys SET status = 'inactive', updated_at = NOW(), valid_until = NOW() + INTERVAL '1 week' WHERE status = 'active';"
 
-    - name: Update exponent (e) in Cloudflare Worker as secret
+    - name: Insert new key into database
       env:
-        CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        KID: ${{ env.KID }}
+        MODULUS: ${{ env.MODULUS }}
         EXPONENT: ${{ env.EXPONENT }}
       run: |
-        echo $EXPONENT | npx wrangler secret put EXPONENT
+        npx wrangler d1 execute ${{ secrets.DATABASE_NAME }} --command="INSERT INTO rsa_public_keys (key_id, modulus, exponent, status, created_at, updated_at, valid_from, valid_until) VALUES ('$KID, $MODULUS', '$EXPONENT', 'active', NOW(), NOW(), NOW(), NOW() + INTERVAL '1 week');"
 
     - name: Cleanup key
       run: |
         rm public.pem
-    
-    - name: Generate UUID for kid
-      run: |
-        KID=$(uuidgen)
-        echo "KID=$KID" >> $GITHUB_ENV
-
-    - name: Store kid in Cloudflare Worker as a secret
-      env:
-        CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-        KID: ${{ env.KID }}
-      run: |
-        echo $KID | npx wrangler secret put KID
