@@ -26,12 +26,13 @@ jobs:
     - name: Extract modulus (n)
       id: modulus
       run: |
-        echo "MODULUS=$(openssl rsa -pubin -in public.pem -modulus -noout | cut -d'=' -f2)" >> $GITHUB_ENV
+        MODULUS=$(openssl rsa -pubin -in public.pem -modulus -noout | cut -d'=' -f2 | xxd -r -p | python3 -c "import base64, sys; print(base64.urlsafe_b64encode(sys.stdin.buffer.read()).decode().rstrip('='))")
+        echo "MODULUS=$MODULUS" >> $GITHUB_ENV
 
     - name: Extract exponent (e)
       id: exponent
       run: |
-        EXPONENT=$(openssl rsa -pubin -in public.pem -text -noout | grep "^Exponent" | cut -d' ' -f2)
+        EXPONENT=$(openssl rsa -pubin -in public.pem -text -noout | grep "^Exponent" | awk '{print $2}' | xargs -I {} python3 -c "import base64; print(base64.urlsafe_b64encode((int({})).to_bytes(3, byteorder='big')).decode())" | tr '/+' '_-' | tr -d '=')
         echo "EXPONENT=$EXPONENT" >> $GITHUB_ENV
 
 
