@@ -265,17 +265,24 @@ export default {
 			return new Response(JSON.stringify({ keys: [jwk, inactiveKey] }), {
 				headers: {
 					'Content-Type': 'application/json',
+					'Access-Control-Allow-Origin': '*', // Allow requests from any origin
+					'Access-Control-Allow-Methods': 'GET', // Allow GET requests
+					'Access-Control-Allow-Headers': 'Content-Type', // Allow Content-Type header
 				},
 			});
 
 		} else if (pathname === '/.well-known/openid-configuration') {
+
 			return new Response(JSON.stringify({
 				issuer: "https://auth.beckr.dev",
 				jwks_uri: "https://auth.beckr.dev/.well-known/jwks.json",
 			}), {
 				headers: {
 					'Content-Type': 'application/json',
-				},
+					'Access-Control-Allow-Origin': '*', // Allow requests from any origin
+					'Access-Control-Allow-Methods': 'GET', // Allow GET requests
+					'Access-Control-Allow-Headers': 'Content-Type', // Allow Content-Type header
+				}
 			});
 		}
 
