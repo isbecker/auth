@@ -53,31 +53,6 @@ function getSessionId(request: Request, lucia: Lucia): string | null {
 	return sessionId;
 }
 
-async function createUserTable(db: D1Database) {
-	await db.exec(
-		"CREATE TABLE IF NOT EXISTS user (id TEXT NOT NULL PRIMARY KEY, " +
-		"github_id INTEGER NOT NULL UNIQUE, " +
-		"username TEXT NOT NULL)"
-	);
-}
-
-async function createSessionTable(db: D1Database) {
-	await db.exec(
-		"CREATE TABLE IF NOT EXISTS session (id TEXT NOT NULL PRIMARY KEY, " +
-		"expires_at INTEGER NOT NULL, " +
-		"user_id TEXT NOT NULL, " +
-		"FOREIGN KEY (user_id) REFERENCES user(id))"
-	);
-}
-
-async function createRefreshTokenTable(db: D1Database) {
-	await db.exec(
-		"CREATE TABLE IF NOT EXISTS refresh_token (id TEXT NOT NULL PRIMARY KEY, " +
-		"expires_at INTEGER NOT NULL, created_at INTEGER NOT NULL, revoked BOOLEAN NOT NULL, " +
-		"user_id TEXT NOT NULL, FOREIGN KEY (user_id) REFERENCES user(id))"
-	);
-}
-
 function pemToArrayBuffer(pem: string) {
 	// Remove PEM header and footer
 	const base64String = pem
@@ -99,8 +74,6 @@ function pemToArrayBuffer(pem: string) {
 
 export default {
 	async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
-		await createUserTable(env.DB);
-		await createSessionTable(env.DB);
 
 		const github = new GitHub(
 			env.GITHUB_CLIENT_ID,
