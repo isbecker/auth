@@ -52,13 +52,47 @@ function getSessionId(request: Request, lucia: Lucia): string | null {
 }
 
 async function createUserTable(db: D1Database) {
-	const res = await db.exec(`CREATE TABLE IF NOT EXISTS user (id TEXT NOT NULL PRIMARY KEY, github_id INTEGER NOT NULL UNIQUE, username TEXT NOT NULL)`);
-	console.log(res.count, res.duration);
+	await db.exec(
+		"CREATE TABLE IF NOT EXISTS user (id TEXT NOT NULL PRIMARY KEY, " +
+		"github_id INTEGER NOT NULL UNIQUE, " +
+		"username TEXT NOT NULL)"
+	);
 }
 
 async function createSessionTable(db: D1Database) {
-	const res = await db.exec(`CREATE TABLE IF NOT EXISTS session (id TEXT NOT NULL PRIMARY KEY, expires_at INTEGER NOT NULL, user_id TEXT NOT NULL, FOREIGN KEY (user_id) REFERENCES user(id))`);
-	console.log(res.count, res.duration);
+	await db.exec(
+		"CREATE TABLE IF NOT EXISTS session (id TEXT NOT NULL PRIMARY KEY, " +
+		"expires_at INTEGER NOT NULL, " +
+		"user_id TEXT NOT NULL, " +
+		"FOREIGN KEY (user_id) REFERENCES user(id))"
+	);
+}
+
+async function createRefreshTokenTable(db: D1Database) {
+	await db.exec(
+		"CREATE TABLE IF NOT EXISTS refresh_token (id TEXT NOT NULL PRIMARY KEY, " +
+		"expires_at INTEGER NOT NULL, created_at INTEGER NOT NULL, revoked BOOLEAN NOT NULL, " +
+		"user_id TEXT NOT NULL, FOREIGN KEY (user_id) REFERENCES user(id))"
+	);
+}
+
+function pemToArrayBuffer(pem: string) {
+	// Remove PEM header and footer
+	const base64String = pem
+		.replace('-----BEGIN PUBLIC KEY-----', '')
+		.replace('-----END PUBLIC KEY-----', '')
+		.replace(/\s+/g, ''); // Remove whitespace
+
+	// Base64 decode the string to get the binary data
+	const binaryString = atob(base64String);
+
+	// Convert the binary string to an ArrayBuffer
+	const bytes = new Uint8Array(binaryString.length);
+	for (let i = 0; i < binaryString.length; i++) {
+		bytes[i] = binaryString.charCodeAt(i);
+	}
+
+	return bytes.buffer;
 }
 
 export default {
@@ -197,6 +231,23 @@ export default {
 					status: 200
 				});
 			}
+		} else if (pathname === '/.well-known/jwks.json') {
+			const exponent = env.EXPONENT;
+			const modulus = env.MODULUS;
+			const jwk = {
+				kty: 'RSA',
+				use: 'sig',
+				alg: 'RS256',
+				n: modulus,
+				e: exponent,
+			};
+
+			return new Response(JSON.stringify({ keys: [jwk] }), {
+				headers: {
+					'Content-Type': 'application/json',
+				},
+			});
+
 		}
 
 		return new Response(null, {
