@@ -48,19 +48,19 @@ jobs:
         npx wrangler secret put PRIVATE_KEY < private.pem
         rm private.pem
 
-    - name: Mark active key as inactive and update timestamps
-      env:
-        CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      run: |
-        npx wrangler d1 execute ${{ secrets.DATABASE_NAME }} --command="UPDATE rsa_public_keys SET status = 'inactive', updated_at = CURRENT_TIMESTAMP, valid_until = DATETIME('now', 'weekday 1', 'start of day') WHERE status = 'active';"
-
     - name: Mark inactive key as revoked and update timestamps
       env:
         CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       run: |
         npx wrangler d1 execute ${{ secrets.DATABASE_NAME }} --command="UPDATE rsa_public_keys SET status = 'revoked', updated_at = CURRENT_TIMESTAMP, valid_until = NULL WHERE status = 'inactive';"
+
+    - name: Mark active key as inactive and update timestamps
+      env:
+        CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      run: |
+        npx wrangler d1 execute ${{ secrets.DATABASE_NAME }} --command="UPDATE rsa_public_keys SET status = 'inactive', updated_at = CURRENT_TIMESTAMP, valid_until = DATETIME('now', 'weekday 1', 'start of day') WHERE status = 'active';"
 
     - name: Insert new key into database
       env:
