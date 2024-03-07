@@ -38,6 +38,17 @@ interface GitHubUser {
 	login: string;
 }
 
+interface DatabasePubKey {
+	key_id: string;
+	modulus: string;
+	exponent: string;
+	valid_from: Date;
+	valid_until: Date | null;
+	status: "active" | "inactive" | "revoked";
+	created_at: Date;
+	updated_at: Date;
+}
+
 
 function getSessionId(request: Request, lucia: Lucia): string | null {
 	const httpCookie = request.headers.get("Cookie");
@@ -70,6 +81,14 @@ function pemToArrayBuffer(pem: string) {
 	}
 
 	return bytes.buffer;
+}
+
+async function getActivePulicKey(db: D1Database): Promise<DatabasePubKey> {
+	return await db.prepare("SELECT * FROM rsa_public_keys WHERE status = 'active'").first() as DatabasePubKey;
+}
+
+async function getInactivePulicKeys(db: D1Database): Promise<DatabasePubKey[]> {
+	return await db.prepare("SELECT * FROM rsa_public_keys WHERE status = 'inactive'").all() as unknown as DatabasePubKey[];
 }
 
 export default {
@@ -201,11 +220,14 @@ export default {
 					});
 				}
 				const key = pemToArrayBuffer(env.PRIVATE_KEY)
+				const pubkey = await getActivePulicKey(env.DB);
 				const payload = {
 					messaage: "Hello, World!"
 				}
-				// const key = await crypto.subtle.importKey("spki", pemToArrayBuffer(env.PRIVATE_KEY), "RSASSA-PKCS1-v1_5", false, ["verify"]);
 				const jwt = await createJWT("RS256", key, payload, {
+					headers: {
+						kid: pubkey.key_id
+					},
 					expiresIn: new TimeSpan(30, "m"),
 					issuer: "https://auth.beckr.dev",
 					subject: user.id,
@@ -219,17 +241,30 @@ export default {
 				});
 			}
 		} else if (pathname === '/.well-known/jwks.json') {
-			const exponent = env.EXPONENT;
-			const modulus = env.MODULUS;
+			const active = await getActivePulicKey(env.DB);
+
 			const jwk = {
 				kty: 'RSA',
 				use: 'sig',
 				alg: 'RS256',
-				n: modulus,
-				e: exponent,
+				n: active.modulus,
+				e: active.exponent,
+				kid: active.key_id,
 			};
 
-			return new Response(JSON.stringify({ keys: [jwk] }), {
+			const inactives = await getInactivePulicKeys(env.DB);
+			const inactiveKeys = inactives.map((key) => {
+				return {
+					kty: 'RSA',
+					use: 'sig',
+					alg: 'RS256',
+					n: key.modulus,
+					e: key.exponent,
+					kid: key.key_id,
+				};
+			});
+
+			return new Response(JSON.stringify({ keys: [jwk, inactiveKeys] }), {
 				headers: {
 					'Content-Type': 'application/json',
 				},
