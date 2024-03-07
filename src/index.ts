@@ -102,7 +102,9 @@ async function generateRefreshToken(db: D1Database, userId: string): Promise<str
 		}
 	}
 	const refreshToken = generateId(36);
-	await db.prepare("INSERT INTO refresh_tokens (token, user_id) VALUES (?, ?)").bind(refreshToken, userId).run();
+	await db.prepare("INSERT INTO refresh_tokens (token, user_id, issued_at, expires_at) VALUES (?, ?)")
+		.bind(refreshToken, userId, new Date(), new Date(Date.now() + 30 * 24 * 60 * 60 * 1000))
+		.run();
 	return refreshToken;
 }
 
