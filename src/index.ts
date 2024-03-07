@@ -81,8 +81,8 @@ async function createRefreshTokenTable(db: D1Database) {
 function pemToArrayBuffer(pem: string) {
 	// Remove PEM header and footer
 	const base64String = pem
-		.replace('-----BEGIN PUBLIC KEY-----', '')
-		.replace('-----END PUBLIC KEY-----', '')
+		.replace('-----BEGIN PRIVATE KEY-----', '')
+		.replace('-----END PRIVATE KEY-----', '')
 		.replace(/\s+/g, ''); // Remove whitespace
 
 	// Base64 decode the string to get the binary data
