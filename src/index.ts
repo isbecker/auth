@@ -4,7 +4,7 @@ globalThis.crypto = webcrypto as Crypto;
 import { D1Adapter } from "@lucia-auth/adapter-sqlite";
 import { GitHub, OAuth2RequestError, generateState } from 'arctic';
 import { parse } from "cookie";
-import { Lucia, generateId } from "lucia";
+import { Lucia, User, generateId } from "lucia";
 import { TimeSpan } from "oslo";
 import { createJWT } from "oslo/jwt";
 
@@ -91,6 +91,57 @@ async function getInactivePulicKey(db: D1Database): Promise<DatabasePubKey> {
 	return await db.prepare("SELECT * FROM rsa_public_keys WHERE status = 'inactive'").first() as DatabasePubKey;
 }
 
+async function generateRefreshToken(db: D1Database, userId: string): Promise<string> {
+	// First check to see if we already have a refresh token for this user
+	const existingToken = await db.prepare("SELECT token FROM refresh_token WHERE user_id = ?").bind(userId).first() as { token: string, expires_at: Date } | undefined;
+	if (existingToken) {
+		if (existingToken.expires_at < new Date()) {
+			await db.prepare("DELETE FROM refresh_token WHERE token = ?").bind(existingToken.token).run();
+		} else {
+			return existingToken.token;
+		}
+	}
+	const refreshToken = generateId(36);
+	await db.prepare("INSERT INTO refresh_token (token, user_id) VALUES (?, ?)").bind(refreshToken, userId).run();
+	return refreshToken;
+}
+
+async function consumeRefreshToken(db: D1Database, token: string): Promise<void> {
+	await db.prepare("DELETE FROM refresh_token WHERE token = ?").bind(token).run();
+}
+
+async function validateRefreshToken(db: D1Database, token: string): Promise<string | null> {
+	const refreshToken = await db.prepare("SELECT user_id FROM refresh_token WHERE token = ?").bind(token).first() as { user_id: string, expires_at: Date } | undefined;
+	if (refreshToken) {
+		if (refreshToken.expires_at < new Date()) {
+			await db.prepare("DELETE FROM refresh_token WHERE token = ?").bind(token).run();
+			return null;
+		}
+		return refreshToken.user_id;
+	}
+	return null;
+}
+
+const generateJWT = async (env: any, user: User): Promise<string> => {
+	const key = pemToArrayBuffer(env.PRIVATE_KEY);
+	const pubkey = await getActivePulicKey(env.DB);
+	const payload = {
+		entitlements: ["reader", "summary"],
+	};
+	const jwt = await createJWT("RS256", key, payload, {
+		headers: {
+			kid: pubkey.key_id
+		},
+		expiresIn: new TimeSpan(30, "m"),
+		issuer: "https://auth.beckr.dev",
+		subject: user.id,
+		audiences: ["https://reader.beckr.dev"],
+		includeIssuedTimestamp: true,
+	});
+
+	return jwt;
+};
+
 export default {
 	async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
 
@@ -137,6 +188,7 @@ export default {
 					}
 				});
 				const githubUser: GitHubUser = await githubUserResponse.json();
+				let user: User;
 				const existingUser = (await env.DB.prepare("SELECT * FROM user WHERE github_id = ?").bind(githubUser.id).first()) as
 					| DatabaseUser
 					| undefined;
@@ -145,6 +197,10 @@ export default {
 					const sessionCookie = lucia.createSessionCookie(session.id);
 					sessionCookie.attributes.domain = ".beckr.dev";
 					res.headers.append("Set-Cookie", sessionCookie.serialize());
+
+					user = {
+						id: existingUser.id,
+					};
 				} else {
 					const userId = generateId(15);
 					await env.DB.prepare("INSERT INTO user (id, github_id, username) VALUES (?, ?, ?)").bind(
@@ -156,7 +212,16 @@ export default {
 					const sessionCookie = lucia.createSessionCookie(session.id);
 					sessionCookie.attributes.domain = ".beckr.dev";
 					res.headers.append("Set-Cookie", sessionCookie.serialize());
+
+					user = {
+						id: userId,
+					};
 				}
+
+				const jwt = await generateJWT(env, user);
+				const refreshToken = await generateRefreshToken(env.DB, user.id);
+				res.headers.append("Set-Cookie", `AccessToken=${jwt};path=/;SameSite=lax;HttpOnly;Max-Age=${30 * 60};Secure;Domain=.beckr.dev`);
+				res.headers.append("Set-Cookie", `RefreshToken=${refreshToken};path=/;SameSite=lax;HttpOnly;Max-Age=${30 * 24 * 60 * 60};Secure;Domain=.beckr.dev`);
 
 				return res;
 
@@ -172,7 +237,7 @@ export default {
 					status: 500
 				});
 			}
-		} else if (pathname === '/auth/github/logout') {
+		} else if (pathname === '/auth/logout') {
 			const sessionId = getSessionId(request, lucia);
 			if (!sessionId) {
 				return new Response(null, {
@@ -189,7 +254,7 @@ export default {
 					"Set-Cookie": sessionCookie.serialize()
 				}
 			});
-		} else if (pathname === '/auth/github/verify') {
+		} else if (pathname === '/auth/verify') {
 			const sessionId = getSessionId(request, lucia);
 			if (!sessionId) {
 				return new Response(null, {
@@ -208,38 +273,49 @@ export default {
 					},
 				});
 			}
+			let res = new Response(null, {
+				status: 200
+			});
 			if (session) {
 				if (session.fresh) {
 					const sessionCookie = lucia.createSessionCookie(session.id);
 					sessionCookie.attributes.domain = ".beckr.dev";
-					return new Response(null, {
-						status: 200,
-						headers: {
-							"Set-Cookie": sessionCookie.serialize(),
-						},
-					});
+					res.headers.append("Set-Cookie", sessionCookie.serialize());
 				}
-				const key = pemToArrayBuffer(env.PRIVATE_KEY)
-				const pubkey = await getActivePulicKey(env.DB);
-				const payload = {
-					messaage: "Hello, World!"
-				}
-				const jwt = await createJWT("RS256", key, payload, {
-					headers: {
-						kid: pubkey.key_id
-					},
-					expiresIn: new TimeSpan(30, "m"),
-					issuer: "https://auth.beckr.dev",
-					subject: user.id,
-					audiences: ["https://reader.beckr.dev"],
-					includeIssuedTimestamp: true,
-				});
 
-				// Everthing is good, just return 200
-				return new Response(JSON.stringify({ auth: jwt }), {
-					status: 200
+				return res;
+			}
+		} else if (pathname === '/auth/refresh') {
+			const authorizationHeader = request.headers.get("Authorization");
+			if (!authorizationHeader) {
+				return new Response(null, {
+					status: 401
 				});
 			}
+			const token = authorizationHeader.split(" ")[1]; // Bearer <token>
+			const userId = await validateRefreshToken(env.DB, token);
+			if (!userId) {
+				return new Response(null, {
+					status: 401
+				});
+			}
+			await consumeRefreshToken(env.DB, token);
+			const refreshToken = await generateRefreshToken(env.DB, userId);
+			const session = await lucia.createSession(userId, {});
+			const sessionCookie = lucia.createSessionCookie(session.id);
+			sessionCookie.attributes.domain = ".beckr.dev";
+			const jwt = await generateJWT(env, { id: userId });
+			const res = new Response(null, {
+				status: 200,
+				headers: {
+					"Set-Cookie": sessionCookie.serialize(),
+				}
+			});
+
+			res.headers.append("Set-Cookie", `AccessToken=${jwt};path=/;SameSite=lax;HttpOnly;Max-Age=${30 * 60};Secure;Domain=.beckr.dev`);
+			res.headers.append("Set-Cookie", `RefreshToken=${refreshToken};path=/;SameSite=lax;HttpOnly;Max-Age=${30 * 24 * 60 * 60};Secure;Domain=.beckr.dev`);
+
+			return res;
 		} else if (pathname === '/.well-known/jwks.json') {
 			const active = await getActivePulicKey(env.DB);
 
