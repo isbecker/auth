@@ -1,0 +1,6 @@
+-- Migration number: 0000 	 2024-03-07T14:35:03.961Z
+CREATE TABLE IF NOT EXISTS user (
+  id TEXT NOT NULL PRIMARY KEY,
+  github_id INTEGER NOT NULL UNIQUE,
+  username TEXT NOT NULL
+);

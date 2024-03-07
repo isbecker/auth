@@ -1,0 +1,7 @@
+-- Migration number: 0001 	 2024-03-07T14:35:13.043Z
+CREATE TABLE IF NOT EXISTS session (
+	id TEXT NOT NULL PRIMARY KEY,
+	expires_at INTEGER NOT NULL,
+	user_id TEXT NOT NULL,
+	FOREIGN KEY (user_id) REFERENCES user(id)
+);
