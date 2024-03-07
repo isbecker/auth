@@ -5,7 +5,7 @@ import { D1Adapter } from "@lucia-auth/adapter-sqlite";
 import { GitHub, OAuth2RequestError, generateState } from 'arctic';
 import { parse } from "cookie";
 import { Lucia, generateId } from "lucia";
-import { TimeSpan } from "oslo/.";
+import { TimeSpan } from "oslo";
 import { createJWT } from "oslo/jwt";
 
 
