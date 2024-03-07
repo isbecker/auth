@@ -49,11 +49,16 @@ jobs:
         rm private.pem
 
     - name: Mark active key as inactive and update timestamps
+      env:
+        CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       run: |
         npx wrangler d1 execute ${{ secrets.DATABASE_NAME }} --command="UPDATE rsa_public_keys SET status = 'inactive', updated_at = NOW(), valid_until = NOW() + INTERVAL '1 week' WHERE status = 'active';"
 
     - name: Insert new key into database
       env:
+        CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         KID: ${{ env.KID }}
         MODULUS: ${{ env.MODULUS }}
         EXPONENT: ${{ env.EXPONENT }}
