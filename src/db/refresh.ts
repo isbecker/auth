@@ -21,7 +21,7 @@ export async function validateRefreshToken(db: D1Database, token: string): Promi
 	if (refreshToken) {
 		return refreshToken.user_id; // Token is valid and not expired
 	} else {
-		// Token is invalid or expired; consider cleaning up expired tokens here or separately
+		// Token is invalid or expired
 		await db.prepare("DELETE FROM refresh_tokens WHERE token = ?").bind(token).run();
 		return null;
 	}

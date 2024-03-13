@@ -1,6 +1,6 @@
 import { Env } from "@typing/env";
 import { generateJWT } from "@utils/jwt";
-import { consumeRefreshToken, generateRefreshToken, validateRefreshToken } from "@utils/refresh";
+import { consumeRefreshToken, generateRefreshToken, validateRefreshToken } from "@db/refresh";
 import { Lucia } from "lucia";
 
 export const refreshHandler = async (request: Request, lucia: Lucia, env: Env) => {
