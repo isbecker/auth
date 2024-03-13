@@ -1,9 +1,12 @@
+import { initializeLucia } from "@config/luciaConfig";
+import { consumeRefreshToken, generateRefreshToken, validateRefreshToken } from "@db/refresh";
 import { Env } from "@typing/env";
 import { generateJWT } from "@utils/jwt";
-import { consumeRefreshToken, generateRefreshToken, validateRefreshToken } from "@db/refresh";
 import { Lucia } from "lucia";
 
-export const refreshHandler = async (request: Request, lucia: Lucia, env: Env) => {
+export const refreshHandler = async (request: Request, env: Env) => {
+	const lucia: Lucia = initializeLucia(env.DB);
+	
 	const authorizationHeader = request.headers.get("Authorization");
 	if (!authorizationHeader) {
 		return new Response(null, {

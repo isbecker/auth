@@ -1,10 +1,12 @@
+import { initializeGitHub } from '@config/services';
 import { Env } from '@typing/env';
 
-import { GitHub, generateState } from 'arctic';
-import { Lucia } from 'lucia';
+import { generateState } from 'arctic';
 
 
-export const loginHandler = async (req: Request, github: GitHub, lucia: Lucia): Promise<Response> => {
+export const loginHandler = async (req: Request, env: Env): Promise<Response> => {
+	const github = initializeGitHub(env);
+
 	const state = generateState();
 	const url = await github.createAuthorizationURL(state);
 	const res = new Response(null, {

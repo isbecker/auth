@@ -6,8 +6,13 @@ import { generateRefreshToken } from "@db/refresh";
 import { GitHub, OAuth2RequestError } from "arctic";
 import { parse } from "cookie";
 import { Lucia, User, generateId } from "lucia";
+import { initializeGitHub } from "@config/services";
+import { initializeLucia } from "@config/luciaConfig";
 
-export const callbackHandler = async (request: Request, github: GitHub, lucia: Lucia, env: Env) => {
+export const callbackHandler = async (request: Request, env: Env) => {
+	const github = initializeGitHub(env);
+	const lucia = initializeLucia(env.DB);
+	
 	const searchParams = new URL(request.url).searchParams;
 	const code = searchParams.get('code');
 	const state = searchParams.get('state');

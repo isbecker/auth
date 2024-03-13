@@ -1,8 +1,11 @@
+import { initializeLucia } from "@config/luciaConfig";
 import { Env } from "@typing/env";
 import { getSessionId } from "@utils/session";
 import { Lucia } from "lucia";
 
-export const verifyHandler = async (request: Request, lucia: Lucia, env: Env) => {
+export const verifyHandler = async (request: Request, env: Env) => {
+	const lucia: Lucia = initializeLucia(env.DB);
+
 	const sessionId = getSessionId(request, lucia);
 	if (!sessionId) {
 		return new Response(null, {
