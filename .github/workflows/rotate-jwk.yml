@@ -60,7 +60,7 @@ jobs:
         CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       run: |
-        npx wrangler d1 execute ${{ secrets.DATABASE_NAME }} --command="UPDATE rsa_public_keys SET status = 'inactive', updated_at = CURRENT_TIMESTAMP, valid_until = DATETIME('now', 'weekday 1', 'start of day') WHERE status = 'active';"
+        npx wrangler d1 execute ${{ secrets.DATABASE_NAME }} --command="UPDATE rsa_public_keys SET status = 'inactive', updated_at = CURRENT_TIMESTAMP, valid_until = DATETIME('now', '+1 day', 'weekday 1', 'start of day') WHERE status = 'active';"
 
     - name: Insert new key into database
       env:
@@ -70,7 +70,7 @@ jobs:
         MODULUS: ${{ env.MODULUS }}
         EXPONENT: ${{ env.EXPONENT }}
       run: |
-        npx wrangler d1 execute ${{ secrets.DATABASE_NAME }} --command="INSERT INTO rsa_public_keys (key_id, modulus, exponent, status, created_at, updated_at, valid_from, valid_until) VALUES ('$KID', '$MODULUS', '$EXPONENT', 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, DATETIME('now', 'weekday 1', 'start of day'));"
+        npx wrangler d1 execute ${{ secrets.DATABASE_NAME }} --command="INSERT INTO rsa_public_keys (key_id, modulus, exponent, status, created_at, updated_at, valid_from, valid_until) VALUES ('$KID', '$MODULUS', '$EXPONENT', 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, DATETIME('now', '+1 day', 'weekday 1', 'start of day'));"
 
     - name: Cleanup key
       run: |
