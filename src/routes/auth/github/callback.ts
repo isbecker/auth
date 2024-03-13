@@ -2,7 +2,7 @@ import { DatabaseUser } from "@typing/db";
 import { Env } from "@typing/env";
 import { GitHubUser } from "@typing/types";
 import { generateJWT } from "@utils/jwt";
-import { generateRefreshToken } from "@utils/refresh";
+import { generateRefreshToken } from "@db/refresh";
 import { GitHub, OAuth2RequestError } from "arctic";
 import { parse } from "cookie";
 import { Lucia, User, generateId } from "lucia";
