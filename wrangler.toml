@@ -8,6 +8,9 @@ binding = "DB"
 database_name = "reader-auth"
 database_id = "44e7f228-b6a5-434e-8fab-b56d1726534d"
 
+[triggers]
+crons = [ "0 0 * * *" ]
+
 
 # Variable bindings. These are arbitrary, plaintext strings (similar to environment variables)
 # Note: Use secrets to store sensitive data.

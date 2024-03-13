@@ -361,5 +361,9 @@ export default {
 		return new Response(null, {
 			status: 404,
 		});
-	}
+	},
+	async scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext) {
+		const lucia = initializeLucia(env.DB);
+    ctx.waitUntil(lucia.deleteExpiredSessions());
+  },
 };
