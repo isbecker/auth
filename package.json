@@ -12,7 +12,7 @@
     "@types/cookie": "^0.6.0",
     "@types/node": "^20.11.27",
     "cookie": "^0.6.0",
-    "typescript": "^5.0.4",
+    "typescript": "^5.4.5",
     "wrangler": "^3.0.0"
   },
   "dependencies": {
