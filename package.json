@@ -10,7 +10,7 @@
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20240222.0",
     "@types/cookie": "^0.6.0",
-    "@types/node": "^20.11.27",
+    "@types/node": "^20.12.12",
     "cookie": "^0.6.0",
     "typescript": "^5.4.5",
     "wrangler": "^3.0.0"
