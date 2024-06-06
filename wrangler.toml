@@ -11,8 +11,8 @@ database_id = "44e7f228-b6a5-434e-8fab-b56d1726534d"
 [triggers]
 crons = [ "0 0 * * *" ]
 
-[placement]
-mode = "smart"
+# [placement]
+# mode = "smart"
 
 # Variable bindings. These are arbitrary, plaintext strings (similar to environment variables)
 # Note: Use secrets to store sensitive data.
