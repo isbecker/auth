@@ -13,7 +13,7 @@
     "@types/node": "^20.14.0",
     "cookie": "^0.6.0",
     "typescript": "^5.4.5",
-    "wrangler": "^3.58.0"
+    "wrangler": "^3.60.1"
   },
   "dependencies": {
     "@lucia-auth/adapter-sqlite": "^3.0.0",
